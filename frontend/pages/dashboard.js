@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
-import { FiPlus, FiUsers, FiFileText, FiCheckCircle } from 'react-icons/fi';
+import { FiPlus, FiUsers, FiFileText, FiCheckCircle, FiSettings } from 'react-icons/fi';
 import MainLayout from '../components/layout/MainLayout';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -48,13 +48,25 @@ const Dashboard = () => {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <Button
-          onClick={() => router.push('/exams/create')}
-          className="flex items-center"
-        >
-          <FiPlus className="mr-2" />
-          Create Exam
-        </Button>
+        <div className="flex space-x-3">
+          {user && user.is_admin && (
+            <Button
+              variant="outline"
+              onClick={() => router.push('/admin')}
+              className="flex items-center"
+            >
+              <FiSettings className="mr-2" />
+              Admin Panel
+            </Button>
+          )}
+          <Button
+            onClick={() => router.push('/exams/create')}
+            className="flex items-center"
+          >
+            <FiPlus className="mr-2" />
+            Create Exam
+          </Button>
+        </div>
       </div>
       
       {/* Stats */}
@@ -71,6 +83,47 @@ const Dashboard = () => {
           </Card>
         ))}
       </div>
+      
+      {/* Admin Quick Access */}
+      {user && user.is_admin && (
+        <div className="mb-8">
+          <h2 className="text-lg font-medium text-gray-900 mb-4">Admin Quick Access</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card className="hover:shadow-lg transition-shadow duration-200">
+              <Link href="/admin/exams" className="block p-4">
+                <div className="flex items-center">
+                  <FiFileText className="h-5 w-5 text-blue-500 mr-2" />
+                  <span>Manage Exams</span>
+                </div>
+              </Link>
+            </Card>
+            <Card className="hover:shadow-lg transition-shadow duration-200">
+              <Link href="/admin/questions" className="block p-4">
+                <div className="flex items-center">
+                  <FiFileText className="h-5 w-5 text-green-500 mr-2" />
+                  <span>Manage Questions</span>
+                </div>
+              </Link>
+            </Card>
+            <Card className="hover:shadow-lg transition-shadow duration-200">
+              <Link href="/admin/candidates" className="block p-4">
+                <div className="flex items-center">
+                  <FiUsers className="h-5 w-5 text-purple-500 mr-2" />
+                  <span>Manage Candidates</span>
+                </div>
+              </Link>
+            </Card>
+            <Card className="hover:shadow-lg transition-shadow duration-200">
+              <Link href="/admin/results" className="block p-4">
+                <div className="flex items-center">
+                  <FiCheckCircle className="h-5 w-5 text-yellow-500 mr-2" />
+                  <span>View Results</span>
+                </div>
+              </Link>
+            </Card>
+          </div>
+        </div>
+      )}
       
       {/* Recent Exams */}
       <div className="mb-8">
