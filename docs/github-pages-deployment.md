@@ -22,9 +22,8 @@ git push origin main
 
 1. Go to your GitHub repository
 2. Click on "Settings"
-3. Scroll down to the "GitHub Pages" section or click on "Pages" in the sidebar
+3. Scroll down to the "Pages" section in the sidebar
 4. Under "Build and deployment", select "GitHub Actions" as the source
-5. This will use the workflow file we've created at `.github/workflows/frontend-deploy.yml`
 
 ## Step 3: Configure Your Backend API URL
 
@@ -56,7 +55,7 @@ After the workflow completes successfully:
 
 1. Go to your GitHub repository
 2. Click on "Settings"
-3. Scroll down to the "GitHub Pages" section
+3. Scroll down to the "Pages" section
 4. You'll see a message like "Your site is published at https://username.github.io/repo-name/"
 5. Click on the URL to visit your deployed frontend
 
@@ -77,9 +76,22 @@ Check the workflow logs:
 3. Click on the failed workflow run
 4. Examine the logs to identify the issue
 
-### My changes aren't showing up after deployment
+### Common Issues and Solutions
 
-Try:
-1. Clearing your browser cache
-2. Waiting a few minutes (GitHub Pages can take a moment to update)
-3. Checking if the workflow completed successfully 
+#### Missing upload-pages-artifact
+
+If you see an error like "Missing download info for actions/upload-artifact@v3", make sure you're using the correct version of the action. We've updated the workflow to use `actions/upload-pages-artifact@v2`.
+
+#### Next.js Build Errors
+
+If your Next.js build is failing, check:
+1. That all dependencies are installed
+2. Your code doesn't have any syntax errors
+3. You're not using features that aren't compatible with static exports
+
+#### Static Export Issues
+
+If you're having issues with the static export:
+1. Make sure your Next.js version supports the `output: 'export'` configuration
+2. Check that you're not using any features that aren't compatible with static exports (like API routes)
+3. Ensure all your images are properly handled with the `unoptimized: true` setting 
