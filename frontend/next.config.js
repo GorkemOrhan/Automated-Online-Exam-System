@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  basePath: "/Automated-Online-Exam-System",
+  output: "export",
   reactStrictMode: true,
   env: {
     API_URL: process.env.API_URL || 'http://localhost:5000/api',
