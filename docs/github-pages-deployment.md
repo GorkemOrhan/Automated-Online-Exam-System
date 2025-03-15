@@ -45,7 +45,7 @@ You can trigger the deployment in two ways:
 2. Manually trigger the workflow:
    - Go to your GitHub repository
    - Click on "Actions"
-   - Select the "Deploy Frontend to GitHub Pages" workflow
+   - Select the "Deploy Next.js site to Pages" workflow
    - Click on "Run workflow"
    - Select the branch (usually `main`) and click "Run workflow"
 
@@ -80,7 +80,12 @@ Check the workflow logs:
 
 #### Missing upload-pages-artifact
 
-If you see an error like "Missing download info for actions/upload-artifact@v3", make sure you're using the correct version of the action. We've updated the workflow to use `actions/upload-pages-artifact@v2`.
+If you see an error like "Missing download info for actions/upload-artifact@v3", we've provided two workflow files:
+
+1. `.github/workflows/frontend-deploy.yml` - Our original workflow
+2. `.github/workflows/nextjs.yml` - An alternative workflow based on GitHub's official Next.js template
+
+Try using the alternative workflow by manually triggering it from the Actions tab.
 
 #### Next.js Build Errors
 
@@ -94,4 +99,11 @@ If your Next.js build is failing, check:
 If you're having issues with the static export:
 1. Make sure your Next.js version supports the `output: 'export'` configuration
 2. Check that you're not using any features that aren't compatible with static exports (like API routes)
-3. Ensure all your images are properly handled with the `unoptimized: true` setting 
+3. Ensure all your images are properly handled with the `unoptimized: true` setting
+
+#### GitHub Actions Version Compatibility
+
+If you're still encountering issues with GitHub Actions, try:
+1. Using the latest versions of actions (we've updated to v4 where available)
+2. Adding the `actions/configure-pages` step before the upload step
+3. Using the official Next.js deployment workflow template 

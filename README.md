@@ -70,6 +70,15 @@ This project is configured to deploy the frontend to GitHub Pages using GitHub A
 3. The frontend will be automatically deployed when you push to the main branch
 4. Your site will be available at `https://[username].github.io/[repository-name]`
 
+#### Workflow Options
+
+We've provided two GitHub Actions workflow files for deployment:
+
+1. **Standard Workflow** (`.github/workflows/frontend-deploy.yml`): A basic workflow for deploying Next.js to GitHub Pages
+2. **Official Next.js Workflow** (`.github/workflows/nextjs.yml`): Based on GitHub's official Next.js deployment template
+
+If you encounter issues with one workflow, try using the other by manually triggering it from the Actions tab.
+
 #### Connecting to Backend
 
 Since GitHub Pages only hosts static content, you'll need to deploy your backend separately. After deploying your backend:
