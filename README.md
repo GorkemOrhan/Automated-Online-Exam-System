@@ -57,6 +57,32 @@ flask run
 # Instructions for setting up PostgreSQL database
 ```
 
+## Deployment
+
+### GitHub Pages Deployment (Frontend Only)
+
+This project is configured to deploy the frontend to GitHub Pages using GitHub Actions:
+
+1. Push your code to GitHub
+2. Go to your repository settings and enable GitHub Pages
+   - Navigate to Settings > Pages
+   - Under "Build and deployment", select "GitHub Actions" as the source
+3. The frontend will be automatically deployed when you push to the main branch
+4. Your site will be available at `https://[username].github.io/[repository-name]`
+
+#### Connecting to Backend
+
+Since GitHub Pages only hosts static content, you'll need to deploy your backend separately. After deploying your backend:
+
+1. Go to your GitHub repository settings
+2. Navigate to Settings > Secrets and variables > Actions
+3. Add a new repository secret:
+   - Name: `API_URL`
+   - Value: Your backend API URL (e.g., `https://your-backend-api.com/api`)
+4. Trigger a new deployment by pushing a change or manually running the workflow
+
+For more detailed instructions, see the [GitHub Pages Deployment Guide](docs/github-pages-deployment.md).
+
 ## Development Roadmap
 
 1. Project setup and repository structure

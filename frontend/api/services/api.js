@@ -1,7 +1,9 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
 
-const API_URL = process.env.API_URL || 'http://localhost:5000/api';
+// Use environment variables for API URL
+// In production on GitHub Pages, this will be set by the GitHub Actions workflow
+const API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:5000/api';
 
 // Create axios instance
 const api = axios.create({
@@ -31,8 +33,13 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
+    // Handle API connection errors (common when frontend is deployed but backend is not)
+    if (!error.response) {
+      console.error('API connection error:', error.message);
+      // You could show a user-friendly message here
+    }
     // Handle 401 Unauthorized errors
-    if (error.response && error.response.status === 401) {
+    else if (error.response.status === 401) {
       // Clear token and redirect to login
       Cookies.remove('token');
       if (typeof window !== 'undefined') {
