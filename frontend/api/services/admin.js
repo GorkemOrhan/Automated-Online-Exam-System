@@ -1,4 +1,4 @@
-import { apiRequest } from '../apiClient';
+import { apiRequest } from './apiClient';
 
 /**
  * Get system statistics for the admin dashboard
