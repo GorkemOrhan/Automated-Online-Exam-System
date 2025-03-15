@@ -45,7 +45,7 @@ You can trigger the deployment in two ways:
 2. Manually trigger the workflow:
    - Go to your GitHub repository
    - Click on "Actions"
-   - Select the "Deploy Next.js site to Pages" workflow
+   - Select the "Simple Next.js Deployment" workflow (recommended)
    - Click on "Run workflow"
    - Select the branch (usually `main`) and click "Run workflow"
 
@@ -78,14 +78,20 @@ Check the workflow logs:
 
 ### Common Issues and Solutions
 
-#### Missing upload-pages-artifact
+#### Cache-related Errors
 
-If you see an error like "Missing download info for actions/upload-artifact@v3", we've provided two workflow files:
+If you see errors related to caching like "Cache not found for keys", try using our simplified workflow:
+
+1. Go to your GitHub repository
+2. Click on "Actions"
+3. Select the "Simple Next.js Deployment" workflow
+4. Click on "Run workflow"
+
+We've provided three different workflow files with increasing levels of simplicity:
 
 1. `.github/workflows/frontend-deploy.yml` - Our original workflow
-2. `.github/workflows/nextjs.yml` - An alternative workflow based on GitHub's official Next.js template
-
-Try using the alternative workflow by manually triggering it from the Actions tab.
+2. `.github/workflows/nextjs.yml` - Based on GitHub's official Next.js template
+3. `.github/workflows/simple-nextjs.yml` - A simplified workflow without complex caching
 
 #### Next.js Build Errors
 
@@ -106,4 +112,4 @@ If you're having issues with the static export:
 If you're still encountering issues with GitHub Actions, try:
 1. Using the latest versions of actions (we've updated to v4 where available)
 2. Adding the `actions/configure-pages` step before the upload step
-3. Using the official Next.js deployment workflow template 
+3. Using the simplified workflow that avoids complex caching mechanisms 

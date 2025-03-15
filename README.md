@@ -72,12 +72,13 @@ This project is configured to deploy the frontend to GitHub Pages using GitHub A
 
 #### Workflow Options
 
-We've provided two GitHub Actions workflow files for deployment:
+We've provided three GitHub Actions workflow files for deployment:
 
 1. **Standard Workflow** (`.github/workflows/frontend-deploy.yml`): A basic workflow for deploying Next.js to GitHub Pages
 2. **Official Next.js Workflow** (`.github/workflows/nextjs.yml`): Based on GitHub's official Next.js deployment template
+3. **Simplified Workflow** (`.github/workflows/simple-nextjs.yml`): A streamlined workflow without complex caching (recommended for most users)
 
-If you encounter issues with one workflow, try using the other by manually triggering it from the Actions tab.
+If you encounter issues with one workflow, try using another by manually triggering it from the Actions tab. The simplified workflow is recommended for most users as it avoids cache-related errors.
 
 #### Connecting to Backend
 
