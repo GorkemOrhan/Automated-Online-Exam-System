@@ -31,9 +31,9 @@ const MainLayout = ({ children }) => {
   };
   
   const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: FiHome },
-    { name: 'Exams', href: '/exams', icon: FiFileText },
-    { name: 'Candidates', href: '/candidates', icon: FiUsers },
+    { name: 'Dashboard', href: '/admin', icon: FiHome },
+    { name: 'Exams', href: '/admin/exams', icon: FiFileText },
+    { name: 'Candidates', href: '/admin/candidates', icon: FiUsers },
   ];
   
   return (
