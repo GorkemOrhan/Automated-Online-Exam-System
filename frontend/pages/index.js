@@ -6,9 +6,9 @@ const Home = () => {
   const router = useRouter();
   
   useEffect(() => {
-    // Redirect to admin dashboard if authenticated, otherwise to login
+    // Redirect to user dashboard if authenticated, otherwise to login
     if (isAuthenticated()) {
-      router.push('/admin');
+      router.push('/dashboard');
     } else {
       router.push('/login');
     }
