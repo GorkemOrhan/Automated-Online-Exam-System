@@ -1,9 +1,13 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Removing the basePath setting to fix routing
-  // basePath: "/Automated-Online-Exam-System",
+  // Enable basePath for GitHub Pages
+  basePath: process.env.NODE_ENV === 'production' ? "/Automated-Online-Exam-System" : "",
   output: "export",
   reactStrictMode: true,
+  // Make basePath available to client-side code
+  publicRuntimeConfig: {
+    basePath: process.env.NODE_ENV === 'production' ? "/Automated-Online-Exam-System" : "",
+  },
   env: {
     API_URL: process.env.API_URL || 'http://localhost:5000/api',
   },

@@ -1,5 +1,10 @@
 import axios from 'axios';
 import Cookies from 'js-cookie';
+import getConfig from 'next/config';
+
+// Get Next.js config
+const { publicRuntimeConfig = {} } = getConfig() || {};
+const basePath = publicRuntimeConfig.basePath || '';
 
 // Use environment variables for API URL
 // In production on GitHub Pages, this will be set by the GitHub Actions workflow
@@ -43,7 +48,9 @@ api.interceptors.response.use(
       // Clear token and redirect to login
       Cookies.remove('token');
       if (typeof window !== 'undefined') {
-        window.location.href = '/login';
+        // Take into account the basePath for GitHub Pages
+        const loginPath = `${window.location.origin}${basePath}/login`;
+        window.location.href = loginPath;
       }
     }
     return Promise.reject(error);

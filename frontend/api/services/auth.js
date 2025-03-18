@@ -1,5 +1,10 @@
 import api from './api';
 import Cookies from 'js-cookie';
+import getConfig from 'next/config';
+
+// Get Next.js config for basePath
+const { publicRuntimeConfig = {} } = getConfig() || {};
+const basePath = publicRuntimeConfig.basePath || '';
 
 export const login = async (email, password) => {
   try {

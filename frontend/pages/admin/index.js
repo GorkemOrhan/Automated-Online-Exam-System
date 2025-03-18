@@ -24,7 +24,7 @@ const AdminDashboard = () => {
         
         // Check if user is admin
         if (!currentUser || !currentUser.is_admin) {
-          router.push('/dashboard');
+          router.push('/admin');
           return;
         }
         
