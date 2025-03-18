@@ -59,6 +59,18 @@ flask run
 
 ## Deployment
 
+### Complete Deployment Guide
+
+For a full-stack application to work properly, you need to deploy both the frontend and backend:
+
+1. **Frontend**: Deploy to GitHub Pages (static hosting)
+2. **Backend**: Deploy to a platform that supports Python/Flask (Render, Railway, Heroku, etc.)
+3. **Connect**: Configure the frontend to communicate with your deployed backend
+
+For detailed instructions, see:
+- [GitHub Pages Deployment Guide](docs/github-pages-deployment.md) (Frontend)
+- [Backend Deployment Guide](docs/backend-deployment.md) (Backend)
+
 ### GitHub Pages Deployment (Frontend Only)
 
 This project is configured to deploy the frontend to GitHub Pages using GitHub Actions:
@@ -80,18 +92,33 @@ We've provided three GitHub Actions workflow files for deployment:
 
 If you encounter issues with one workflow, try using another by manually triggering it from the Actions tab. The simplified workflow is recommended for most users as it avoids cache-related errors.
 
-#### Connecting to Backend
+### Backend Deployment
 
-Since GitHub Pages only hosts static content, you'll need to deploy your backend separately. After deploying your backend:
+Since GitHub Pages only hosts static content, you need to deploy your backend separately:
+
+1. Choose a hosting platform that supports Python/Flask applications (Render, Railway, Heroku, etc.)
+2. Deploy your backend code to the platform
+3. Configure environment variables and database connections
+4. Run the database initialization script to create the admin user
+
+### Connecting Frontend to Backend
+
+After deploying both parts:
 
 1. Go to your GitHub repository settings
 2. Navigate to Settings > Secrets and variables > Actions
 3. Add a new repository secret:
    - Name: `API_URL`
    - Value: Your backend API URL (e.g., `https://your-backend-api.com/api`)
-4. Trigger a new deployment by pushing a change or manually running the workflow
+4. Trigger a new deployment of your frontend
 
-For more detailed instructions, see the [GitHub Pages Deployment Guide](docs/github-pages-deployment.md).
+## Admin Access
+
+The default admin credentials (set in `init_db.py`) are:
+- Email: `admin@example.com`
+- Password: `adminpassword`
+
+Make sure your backend is properly deployed and the database is initialized before attempting to log in.
 
 ## Development Roadmap
 
