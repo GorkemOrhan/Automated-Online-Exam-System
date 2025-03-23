@@ -1,5 +1,5 @@
 from datetime import datetime
-from app import db
+from .. import db
 
 class Question(db.Model):
     """Question model for exam questions."""

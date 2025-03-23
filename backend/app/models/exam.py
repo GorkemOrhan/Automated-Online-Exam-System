@@ -1,6 +1,6 @@
 from datetime import datetime
 import uuid
-from app import db
+from .. import db
 
 class Exam(db.Model):
     """Exam model for defining tests."""
