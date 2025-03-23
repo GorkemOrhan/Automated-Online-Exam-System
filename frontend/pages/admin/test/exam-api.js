@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Container, Paper, Typography, Button, TextField, Grid, Box, Alert, CircularProgress } from '@mui/material';
-import AdminLayout from '../../../components/AdminLayout';
+import AdminLayout from '../../../components/layout/AdminLayout';
 import { getToken } from '../../../utils/auth';
 
 export default function ExamApiTest() {

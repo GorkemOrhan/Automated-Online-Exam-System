@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Container, Paper, Typography, Button, TextField, Box, Alert, CircularProgress, Divider } from '@mui/material';
-import AdminLayout from '../../../components/AdminLayout';
+import AdminLayout from '../../../components/layout/AdminLayout';
 import { login } from '../../../api/services/auth';
 import { getToken, setToken, removeToken } from '../../../utils/auth';
 
