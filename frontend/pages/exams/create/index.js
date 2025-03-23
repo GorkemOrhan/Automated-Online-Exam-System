@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
@@ -12,7 +12,21 @@ import { createExam } from '../../../api/services/exams';
 const CreateExam = () => {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [fromAdmin, setFromAdmin] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm();
+  
+  useEffect(() => {
+    // Check if user came from admin section
+    const referrer = document.referrer;
+    if (referrer && referrer.includes('/admin')) {
+      setFromAdmin(true);
+    }
+    
+    // Also check query parameters for cases where referrer isn't available
+    if (router.query.from === 'admin') {
+      setFromAdmin(true);
+    }
+  }, [router.query]);
   
   const onSubmit = async (data) => {
     setIsLoading(true);
@@ -29,7 +43,13 @@ const CreateExam = () => {
       
       if (result.success) {
         toast.success('Exam created successfully');
-        router.push(`/exams/${result.exam.id}/questions`);
+        
+        // Redirect based on where the user came from
+        if (fromAdmin) {
+          router.push('/admin/exams');
+        } else {
+          router.push(`/exams/${result.exam.id}/questions`);
+        }
       } else {
         toast.error(result.message);
       }
@@ -41,11 +61,19 @@ const CreateExam = () => {
     }
   };
   
+  const handleBack = () => {
+    if (fromAdmin) {
+      router.push('/admin/exams');
+    } else {
+      router.back();
+    }
+  };
+  
   return (
     <div>
       <div className="flex items-center mb-6">
         <button
-          onClick={() => router.back()}
+          onClick={handleBack}
           className="mr-4 p-2 rounded-full hover:bg-gray-100"
         >
           <FiArrowLeft className="h-5 w-5 text-gray-600" />
@@ -151,7 +179,7 @@ const CreateExam = () => {
             <Button
               type="button"
               variant="secondary"
-              onClick={() => router.back()}
+              onClick={handleBack}
             >
               Cancel
             </Button>
