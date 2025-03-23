@@ -24,6 +24,19 @@ export const getQuestion = async (questionId) => {
   }
 };
 
+export const getQuestions = async (examId) => {
+  try {
+    const response = await api.get(`/exams/${examId}/questions`);
+    return { success: true, questions: response.data };
+  } catch (error) {
+    console.error('Error fetching questions:', error);
+    return {
+      success: false,
+      message: error.response?.data?.error || 'Failed to fetch questions',
+    };
+  }
+};
+
 export const updateQuestion = async (questionId, questionData) => {
   try {
     const response = await api.put(`/questions/${questionId}`, questionData);
