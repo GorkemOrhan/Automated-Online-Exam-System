@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { FiHome, FiFileText, FiUsers, FiLogOut, FiMenu, FiX, FiSettings } from 'react-icons/fi';
 import { isAuthenticated, logout, getCurrentUser } from '../../api/services/auth';
+import Cookies from 'js-cookie';
 
 const MainLayout = ({ children }) => {
   const router = useRouter();
@@ -10,15 +11,67 @@ const MainLayout = ({ children }) => {
   const [user, setUser] = useState(null);
   
   useEffect(() => {
-    // Check if user is authenticated
-    if (!isAuthenticated()) {
-      router.push('/login');
-      return;
-    }
+    // Add a boolean to prevent multiple redirects
+    let isMounted = true;
+    let redirectInProgress = false;
     
-    // Get current user
-    const currentUser = getCurrentUser();
-    setUser(currentUser);
+    const checkAuth = async () => {
+      try {
+        // Check local authentication first
+        const isLocallyAuthenticated = isAuthenticated();
+        console.log('LocalLayout: Token exists in cookies:', isLocallyAuthenticated);
+        
+        // If not even locally authenticated, redirect to login immediately
+        if (!isLocallyAuthenticated) {
+          console.log('MainLayout: No token found, redirecting to login');
+          if (isMounted && !redirectInProgress) {
+            redirectInProgress = true;
+            router.push('/login');
+          }
+          return;
+        }
+        
+        // Get current user from localStorage
+        const currentUser = getCurrentUser();
+        console.log('MainLayout: Current user from localStorage:', currentUser ? currentUser.username : 'none');
+        
+        if (currentUser) {
+          setUser(currentUser);
+        }
+        
+        // As an additional check, validate the token with the backend
+        // This helps ensure the token is actually valid
+        // But we don't redirect immediately if this fails
+        try {
+          const validation = await fetch('http://localhost:5000/api/auth/validate-token', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${Cookies.get('token')}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (validation.ok) {
+            console.log('MainLayout: Token validated successfully with backend');
+          } else {
+            console.warn('MainLayout: Token validation failed, status:', validation.status);
+            // Don't redirect here, just log it
+          }
+        } catch (err) {
+          console.error('MainLayout: Error validating token with backend:', err);
+          // Network error - don't redirect as it might be a temporary issue
+        }
+      } catch (error) {
+        console.error('MainLayout: Error in authentication check:', error);
+      }
+    };
+    
+    checkAuth();
+    
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
   
   const handleLogout = () => {
