@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { FiArrowLeft, FiSave } from 'react-icons/fi';
@@ -6,10 +6,12 @@ import MainLayout from '../../../components/layout/MainLayout';
 import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import { createExam } from '../../../api/services/exams';
+import { validateToken } from '../../../api/services/auth';
 
 const CreateExam = () => {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tokenValidated, setTokenValidated] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -17,8 +19,27 @@ const CreateExam = () => {
     passing_score: 70,
     is_active: false,
     instructions: '',
+    is_randomized: false,
   });
   const [errors, setErrors] = useState({});
+  
+  useEffect(() => {
+    // Validate token when component mounts
+    const checkToken = async () => {
+      const result = await validateToken();
+      if (!result.success || !result.valid) {
+        console.error('Token validation failed:', result.message);
+        setErrors({ form: 'Authentication failed. Please log in again.' });
+        // Redirect to login after a short delay
+        setTimeout(() => router.push('/login'), 2000);
+      } else {
+        console.log('Token validated successfully');
+        setTokenValidated(true);
+      }
+    };
+    
+    checkToken();
+  }, [router]);
   
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -62,10 +83,25 @@ const CreateExam = () => {
       return;
     }
     
+    if (!tokenValidated) {
+      setErrors({ form: 'Authentication not confirmed. Please refresh the page or log in again.' });
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {
-      const result = await createExam(formData);
+      // Convert numeric values to numbers instead of strings
+      const examData = {
+        ...formData,
+        duration_minutes: parseInt(formData.duration_minutes, 10),
+        passing_score: parseFloat(formData.passing_score),
+        is_randomized: Boolean(formData.is_randomized)
+      };
+      
+      console.log('Submitting exam data:', examData);
+      const result = await createExam(examData);
+      
       if (result.success) {
         router.push('/admin/exams');
       } else {

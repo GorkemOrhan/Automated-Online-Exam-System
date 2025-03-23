@@ -21,15 +21,27 @@ const Dashboard = () => {
       try {
         // Get current user
         const currentUser = getCurrentUser();
-        setUser(currentUser);
+        console.log('Dashboard: Current user from localStorage:', currentUser ? currentUser.username : 'none');
+        
+        if (currentUser) {
+          setUser(currentUser);
+        }
         
         // Get exams
         const result = await getExams();
+        console.log('Dashboard: Exams fetch result:', result);
+        
         if (result.success) {
-          setExams(result.exams);
+          setExams(result.exams || []);
+        } else {
+          console.error('Dashboard: Failed to fetch exams:', result.message);
+          // Don't throw, just log the error
+          setExams([]);
         }
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        console.error('Dashboard: Error fetching dashboard data:', error);
+        // Set empty exams array to avoid undefined errors
+        setExams([]);
       } finally {
         setIsLoading(false);
       }
