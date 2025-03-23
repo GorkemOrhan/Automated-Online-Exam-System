@@ -22,8 +22,12 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = Cookies.get('token');
+    console.log('Request interceptor - Token exists:', !!token);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('Adding Authorization header to request');
+    } else {
+      console.warn('No token found in cookies');
     }
     return config;
   },
@@ -45,12 +49,26 @@ api.interceptors.response.use(
     }
     // Handle 401 Unauthorized errors
     else if (error.response.status === 401) {
-      // Clear token and redirect to login
-      Cookies.remove('token');
-      if (typeof window !== 'undefined') {
-        // Take into account the basePath for GitHub Pages
-        const loginPath = `${window.location.origin}${basePath}/login`;
-        window.location.href = loginPath;
+      console.error('API 401 Unauthorized error:', error.response.data);
+      
+      // Only redirect for specific auth-related API calls, not all 401s
+      // This prevents immediate redirect loops
+      const isAuthRoute = error.config.url.includes('/auth/');
+      const isValidatingToken = error.config.url.includes('/auth/validate-token');
+      
+      // Don't remove token or redirect for validation errors
+      // This allows the MainLayout component to handle auth checks more gracefully
+      if (!isValidatingToken) {
+        console.warn('Unauthorized access (not during validation), clearing token');
+        Cookies.remove('token');
+        
+        // Only redirect on auth routes (login/register/etc)
+        if (isAuthRoute && typeof window !== 'undefined') {
+          // Take into account the basePath for GitHub Pages
+          const loginPath = `${window.location.origin}${basePath}/login`;
+          console.log('Redirecting to login page due to auth failure');
+          window.location.href = loginPath;
+        }
       }
     }
     return Promise.reject(error);

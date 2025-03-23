@@ -1,11 +1,13 @@
-from flask import request, jsonify
+from flask import request, jsonify, Blueprint
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.api import api_bp
-from app.models.exam import Exam
-from app.models.question import Question, Option
-from app import db
+from ..models.question import Question, Option
+from ..models.exam import Exam
+from .. import db
 
-@api_bp.route('/questions', methods=['POST'])
+# Create questions blueprint
+questions_bp = Blueprint('questions', __name__)
+
+@questions_bp.route('', methods=['POST'])
 @jwt_required()
 def create_question():
     """Create a new question for an exam."""
@@ -13,103 +15,111 @@ def create_question():
     data = request.get_json()
     
     # Validate required fields
-    required_fields = ['text', 'question_type', 'points', 'exam_id']
+    required_fields = ['exam_id', 'question_text', 'question_type', 'points']
     for field in required_fields:
         if field not in data:
             return jsonify({'error': f'Missing required field: {field}'}), 400
     
-    # Verify exam exists and belongs to user
+    # Check if exam exists and belongs to user
     exam = Exam.query.filter_by(id=data['exam_id'], creator_id=user_id).first()
     if not exam:
         return jsonify({'error': 'Exam not found or access denied'}), 404
     
+    # Validate question type
+    valid_types = ['single_choice', 'multiple_choice', 'true_false', 'text']
+    if data['question_type'] not in valid_types:
+        return jsonify({'error': f'Invalid question type. Must be one of: {", ".join(valid_types)}'}), 400
+    
     # Create new question
     question = Question(
-        text=data['text'],
+        exam_id=data['exam_id'],
+        question_text=data['question_text'],
         question_type=data['question_type'],
         points=data['points'],
-        exam_id=data['exam_id'],
-        order=data.get('order')
+        explanation=data.get('explanation', '')
     )
+    
+    # Add options if provided
+    options = data.get('options', [])
+    if not options and question.question_type in ['single_choice', 'multiple_choice', 'true_false']:
+        return jsonify({'error': 'Options are required for this question type'}), 400
+    
+    for option_data in options:
+        option = Option(
+            option_text=option_data.get('option_text', ''),
+            is_correct=option_data.get('is_correct', False)
+        )
+        question.options.append(option)
     
     db.session.add(question)
     db.session.commit()
-    
-    # If it's a multiple-choice question, add options
-    if question.question_type == 'multiple_choice' and 'options' in data:
-        for option_data in data['options']:
-            option = Option(
-                text=option_data['text'],
-                is_correct=option_data.get('is_correct', False),
-                question_id=question.id,
-                order=option_data.get('order')
-            )
-            db.session.add(option)
-        
-        db.session.commit()
     
     return jsonify({
         'message': 'Question created successfully',
         'question': question.to_dict(include_correct_answers=True)
     }), 201
 
-
-@api_bp.route('/questions/<int:question_id>', methods=['GET'])
+@questions_bp.route('/<int:question_id>', methods=['GET'])
 @jwt_required()
 def get_question(question_id):
     """Get a specific question by ID."""
     user_id = get_jwt_identity()
+    
+    # Join Question with Exam to check permissions
     question = Question.query.join(Exam).filter(
         Question.id == question_id,
         Exam.creator_id == user_id
     ).first()
     
     if not question:
-        return jsonify({'error': 'Question not found'}), 404
+        return jsonify({'error': 'Question not found or access denied'}), 404
     
     return jsonify(question.to_dict(include_correct_answers=True)), 200
 
-
-@api_bp.route('/questions/<int:question_id>', methods=['PUT'])
+@questions_bp.route('/<int:question_id>', methods=['PUT'])
 @jwt_required()
 def update_question(question_id):
     """Update an existing question."""
     user_id = get_jwt_identity()
+    
+    # Join Question with Exam to check permissions
     question = Question.query.join(Exam).filter(
         Question.id == question_id,
         Exam.creator_id == user_id
     ).first()
     
     if not question:
-        return jsonify({'error': 'Question not found'}), 404
+        return jsonify({'error': 'Question not found or access denied'}), 404
     
     data = request.get_json()
     
     # Update question fields
-    if 'text' in data:
-        question.text = data['text']
+    if 'question_text' in data:
+        question.question_text = data['question_text']
     if 'question_type' in data:
+        # Validate question type
+        valid_types = ['single_choice', 'multiple_choice', 'true_false', 'text']
+        if data['question_type'] not in valid_types:
+            return jsonify({'error': f'Invalid question type. Must be one of: {", ".join(valid_types)}'}), 400
         question.question_type = data['question_type']
     if 'points' in data:
         question.points = data['points']
-    if 'order' in data:
-        question.order = data['order']
+    if 'explanation' in data:
+        question.explanation = data['explanation']
     
     # Update options if provided
-    if 'options' in data and question.question_type == 'multiple_choice':
-        # Delete existing options
+    if 'options' in data:
+        # Remove existing options
         for option in question.options:
             db.session.delete(option)
         
         # Add new options
         for option_data in data['options']:
             option = Option(
-                text=option_data['text'],
-                is_correct=option_data.get('is_correct', False),
-                question_id=question.id,
-                order=option_data.get('order')
+                option_text=option_data.get('option_text', ''),
+                is_correct=option_data.get('is_correct', False)
             )
-            db.session.add(option)
+            question.options.append(option)
     
     db.session.commit()
     
@@ -118,21 +128,90 @@ def update_question(question_id):
         'question': question.to_dict(include_correct_answers=True)
     }), 200
 
-
-@api_bp.route('/questions/<int:question_id>', methods=['DELETE'])
+@questions_bp.route('/<int:question_id>', methods=['DELETE'])
 @jwt_required()
 def delete_question(question_id):
     """Delete a question."""
     user_id = get_jwt_identity()
+    
+    # Join Question with Exam to check permissions
     question = Question.query.join(Exam).filter(
         Question.id == question_id,
         Exam.creator_id == user_id
     ).first()
     
     if not question:
-        return jsonify({'error': 'Question not found'}), 404
+        return jsonify({'error': 'Question not found or access denied'}), 404
     
     db.session.delete(question)
     db.session.commit()
     
-    return jsonify({'message': 'Question deleted successfully'}), 200 
+    return jsonify({'message': 'Question deleted successfully'}), 200
+
+@questions_bp.route('/bulk', methods=['POST'])
+@jwt_required()
+def bulk_create_questions():
+    """Create multiple questions for an exam in one request."""
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    
+    # Validate required fields
+    if 'exam_id' not in data:
+        return jsonify({'error': 'Missing exam_id field'}), 400
+    if 'questions' not in data or not isinstance(data['questions'], list):
+        return jsonify({'error': 'Questions must be provided as a list'}), 400
+    
+    # Check if exam exists and belongs to user
+    exam = Exam.query.filter_by(id=data['exam_id'], creator_id=user_id).first()
+    if not exam:
+        return jsonify({'error': 'Exam not found or access denied'}), 404
+    
+    created_questions = []
+    
+    try:
+        for q_data in data['questions']:
+            # Validate required fields for each question
+            required_fields = ['question_text', 'question_type', 'points']
+            for field in required_fields:
+                if field not in q_data:
+                    return jsonify({'error': f'Missing required field: {field} in question'}), 400
+            
+            # Validate question type
+            valid_types = ['single_choice', 'multiple_choice', 'true_false', 'text']
+            if q_data['question_type'] not in valid_types:
+                return jsonify({'error': f'Invalid question type. Must be one of: {", ".join(valid_types)}'}), 400
+            
+            # Create new question
+            question = Question(
+                exam_id=data['exam_id'],
+                question_text=q_data['question_text'],
+                question_type=q_data['question_type'],
+                points=q_data['points'],
+                explanation=q_data.get('explanation', '')
+            )
+            
+            # Add options if provided
+            options = q_data.get('options', [])
+            if not options and question.question_type in ['single_choice', 'multiple_choice', 'true_false']:
+                return jsonify({'error': 'Options are required for this question type'}), 400
+            
+            for option_data in options:
+                option = Option(
+                    option_text=option_data.get('option_text', ''),
+                    is_correct=option_data.get('is_correct', False)
+                )
+                question.options.append(option)
+            
+            db.session.add(question)
+            created_questions.append(question)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'Successfully created {len(created_questions)} questions',
+            'questions': [q.to_dict(include_correct_answers=True) for q in created_questions]
+        }), 201
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Failed to create questions: {str(e)}'}), 500 
