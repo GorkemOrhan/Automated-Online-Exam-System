@@ -66,7 +66,7 @@ const ExamManagement = () => {
       
       <div className="flex justify-end mb-6">
         <Button
-          onClick={() => router.push('/admin/exams/create')}
+          onClick={() => router.push('/exams/create?from=admin')}
           className="flex items-center"
         >
           <FiPlus className="mr-2" />
