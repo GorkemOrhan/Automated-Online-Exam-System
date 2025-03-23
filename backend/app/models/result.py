@@ -1,5 +1,5 @@
 from datetime import datetime
-from app import db
+from .. import db
 
 class Result(db.Model):
     """Result model for exam results."""

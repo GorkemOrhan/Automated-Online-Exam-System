@@ -1,6 +1,6 @@
 from datetime import datetime
 import uuid
-from app import db
+from .. import db
 
 class Candidate(db.Model):
     """Candidate model for exam takers."""

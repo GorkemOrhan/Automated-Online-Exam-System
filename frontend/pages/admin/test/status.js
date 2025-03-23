@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Container, Paper, Typography, Button, Box, Alert, CircularProgress, Grid, Chip, Divider } from '@mui/material';
 import { CheckCircle, Error, Refresh } from '@mui/icons-material';
-import AdminLayout from '../../../components/AdminLayout';
+import AdminLayout from '../../../components/layout/AdminLayout';
 
 export default function ApiStatus() {
     const [loading, setLoading] = useState(false);

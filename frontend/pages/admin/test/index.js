@@ -1,28 +1,16 @@
 import { useState } from 'react';
 import { Container, Paper, Typography, Grid, Card, CardContent, CardActions, Button, Box } from '@mui/material';
 import { Security, Api, AccountCircle, Token } from '@mui/icons-material';
-import AdminLayout from '../../../components/AdminLayout';
+import AdminLayout from '../../../components/layout/AdminLayout';
 import Link from 'next/link';
 
 export default function TestDashboard() {
     const debugTools = [
         {
-            title: 'Authentication Debug',
-            description: 'Test authentication flow, manage tokens, and diagnose login issues',
-            icon: <Security fontSize="large" color="primary" />,
-            link: '/admin/test/auth-debug'
-        },
-        {
             title: 'JWT Token Validation',
             description: 'Validate JWT tokens, view token payloads, and test token expiration',
             icon: <Token fontSize="large" color="secondary" />,
             link: '/admin/test/token'
-        },
-        {
-            title: 'Exam API Testing',
-            description: 'Test exam creation, retrieval, and other exam-related API endpoints',
-            icon: <Api fontSize="large" color="info" />,
-            link: '/admin/test/exam-api'
         },
         {
             title: 'API Status Check',
@@ -47,7 +35,7 @@ export default function TestDashboard() {
                     <Box sx={{ mt: 4 }}>
                         <Grid container spacing={3}>
                             {debugTools.map((tool, index) => (
-                                <Grid item xs={12} sm={6} md={3} key={index}>
+                                <Grid item xs={12} sm={6} md={6} key={index}>
                                     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                                         <Box sx={{ display: 'flex', justifyContent: 'center', pt: 2 }}>
                                             {tool.icon}

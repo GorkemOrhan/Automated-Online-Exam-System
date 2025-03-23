@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { validateToken } from '../../../api/services/auth';
 import { getToken } from '../../../utils/auth';
 import { Container, Paper, Typography, Button, TextField, Grid, Box, Alert } from '@mui/material';
-import AdminLayout from '../../../components/AdminLayout';
+import AdminLayout from '../../../components/layout/AdminLayout';
 
 export default function TokenTest() {
     const [token, setToken] = useState('');
