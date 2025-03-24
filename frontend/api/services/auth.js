@@ -6,6 +6,17 @@ import getConfig from 'next/config';
 const { publicRuntimeConfig = {} } = getConfig() || {};
 const basePath = publicRuntimeConfig.basePath || '';
 
+// Determine if we're in static mode (GitHub Pages)
+const isStaticMode = () => {
+  // Check if we're on GitHub Pages
+  if (typeof window !== 'undefined') {
+    const isGitHubPages = window.location.hostname.includes('github.io');
+    const isStaticExport = process.env.NEXT_PUBLIC_STATIC_EXPORT === 'true';
+    return isGitHubPages || isStaticExport;
+  }
+  return false;
+};
+
 export const login = async (email, password) => {
   try {
     console.log('Attempting login with email:', email);
