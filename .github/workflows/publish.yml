@@ -16,6 +16,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_API_URL: ${{ secrets.BACKEND_API_URL }}
 
     steps:
       - name: Checkout 🛎️
@@ -45,6 +47,9 @@ jobs:
       - name: Build with Next.js 🏗️
         run: npx next build
         working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.BACKEND_API_URL }}
+          NEXT_PUBLIC_STATIC_EXPORT: 'true'
 
       - name: Upload artifact 📡
         uses: actions/upload-pages-artifact@v3
