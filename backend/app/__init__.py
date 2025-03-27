@@ -58,7 +58,14 @@ def create_app(config_class=Config):
     # Initialize extensions with app
     db.init_app(app)
     migrate.init_app(app, db)
-    CORS(app)
+    
+    # Configure CORS to allow requests from GitHub Pages and localhost
+    CORS(app, resources={r"/api/*": {"origins": [
+        "https://GorkemOrhan.github.io",  # Replace with your GitHub Pages domain
+        "http://localhost:3000",  # For local frontend development
+        "http://127.0.0.1:3000"   # Alternative localhost address
+    ]}})
+    
     jwt.init_app(app)
     
     # Setup logging
