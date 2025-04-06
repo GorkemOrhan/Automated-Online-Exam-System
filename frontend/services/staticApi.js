@@ -10,6 +10,7 @@ const USER_STORE = 'users';
 const EXAM_STORE = 'exams';
 const CANDIDATE_STORE = 'candidates';
 const QUESTION_STORE = 'questions';
+const OPTION_STORE = 'options';
 
 // Helper function to get current user from cookies/localStorage
 const getCurrentUser = () => {
@@ -360,24 +361,119 @@ const handleQuestionRequest = async (method, url, data) => {
   
   // Create new question
   if (url === '/questions' && method === 'POST') {
-    const newQuestion = {
-      ...data,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    
-    const createdQuestion = await db.add(QUESTION_STORE, newQuestion);
-    return {
-      data: createdQuestion
-    };
+    try {
+      // Format the data to match the database schema
+      const formattedQuestionData = {
+        exam_id: data.exam_id,
+        text: data.question_text || data.text, // Support both field names
+        question_type: data.question_type || data.type, // Support both field names
+        points: data.points,
+        explanation: data.explanation || '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      // Add the question to the database
+      const createdQuestion = await db.add(QUESTION_STORE, formattedQuestionData);
+      
+      // Process options if present
+      if (data.options && data.options.length > 0 && 
+          ['multiple_choice', 'single_choice', 'true_false'].includes(data.question_type)) {
+        const options = data.options.map((option, index) => ({
+          text: option.option_text || option.text, // Support both field names
+          is_correct: option.is_correct,
+          question_id: createdQuestion.id,
+          order: index + 1,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
+        
+        // Add options to the database and link to question
+        for (const option of options) {
+          await db.add(OPTION_STORE, option);
+        }
+        
+        // Fetch the options to include in the response
+        const savedOptions = await db.getAllByIndex(OPTION_STORE, 'question_id', createdQuestion.id);
+        createdQuestion.options = savedOptions;
+      }
+      
+      return {
+        data: {
+          message: 'Question created successfully',
+          question: {
+            ...createdQuestion,
+            question_text: createdQuestion.text // Add question_text for frontend compatibility
+          }
+        }
+      };
+    } catch (error) {
+      console.error('Static API error creating question:', error);
+      return {
+        data: { error: 'Failed to create question: ' + error.message },
+        status: 500
+      };
+    }
   }
   
   // Get all questions
   if (url === '/questions' && method === 'GET') {
-    const questions = await db.getAll(QUESTION_STORE);
-    return {
-      data: questions
-    };
+    try {
+      const questions = await db.getAll(QUESTION_STORE);
+      
+      // Get query parameters from url
+      const urlObj = new URL('http://localhost' + url);
+      const exam_id = urlObj.searchParams.get('exam_id');
+      const question_type = urlObj.searchParams.get('question_type');
+      const search = urlObj.searchParams.get('search');
+      
+      // Apply filters
+      let filteredQuestions = [...questions];
+      
+      if (exam_id) {
+        filteredQuestions = filteredQuestions.filter(q => q.exam_id === parseInt(exam_id));
+      }
+      
+      if (question_type) {
+        filteredQuestions = filteredQuestions.filter(q => q.question_type === question_type);
+      }
+      
+      if (search) {
+        const searchLower = search.toLowerCase();
+        filteredQuestions = filteredQuestions.filter(q => 
+          q.text.toLowerCase().includes(searchLower)
+        );
+      }
+      
+      // Fetch exam titles for each question
+      const questionResults = [];
+      
+      for (const question of filteredQuestions) {
+        const questionCopy = { ...question };
+        
+        // Get exam details
+        const exam = await db.getById(EXAM_STORE, question.exam_id);
+        if (exam) {
+          questionCopy.exam_title = exam.title;
+        }
+        
+        // Get options
+        const options = await db.getAllByIndex(OPTION_STORE, 'question_id', question.id);
+        questionCopy.options = options;
+        
+        questionResults.push(questionCopy);
+      }
+      
+      return {
+        data: questionResults
+      };
+    } catch (error) {
+      console.error('Static API error fetching questions:', error);
+      return {
+        data: { error: 'Failed to fetch questions: ' + error.message },
+        status: 500
+      };
+    }
   }
   
   // Get question by ID
@@ -400,24 +496,76 @@ const handleQuestionRequest = async (method, url, data) => {
   
   // Update question
   if (questionIdMatch && method === 'PUT') {
-    const questionId = parseInt(questionIdMatch[1]);
-    const question = await db.getById(QUESTION_STORE, questionId);
-    
-    if (!question) {
+    try {
+      const questionId = parseInt(questionIdMatch[1]);
+      const question = await db.getById(QUESTION_STORE, questionId);
+      
+      if (!question) {
+        return {
+          data: { error: 'Question not found' },
+          status: 404
+        };
+      }
+      
+      // Format the data to match the database schema
+      const formattedQuestionData = {
+        exam_id: data.exam_id,
+        text: data.question_text || data.text, // Support both field names
+        question_type: data.question_type || data.type, // Support both field names
+        points: data.points,
+        explanation: data.explanation || '',
+        updated_at: new Date().toISOString()
+      };
+      
+      // Update the question in the database
+      const updatedQuestion = await db.update(QUESTION_STORE, questionId, formattedQuestionData);
+      
+      // Process options if present
+      if (data.options && data.options.length > 0 && 
+          ['multiple_choice', 'single_choice', 'true_false'].includes(formattedQuestionData.question_type)) {
+          
+        // First, remove all existing options for this question
+        const existingOptions = await db.getAllByIndex(OPTION_STORE, 'question_id', questionId);
+        for (const option of existingOptions) {
+          await db.remove(OPTION_STORE, option.id);
+        }
+        
+        // Then add the new options
+        const options = data.options.map((option, index) => ({
+          text: option.option_text || option.text, // Support both field names
+          is_correct: option.is_correct,
+          question_id: questionId,
+          order: index + 1,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
+        
+        // Add options to the database
+        for (const option of options) {
+          await db.add(OPTION_STORE, option);
+        }
+        
+        // Fetch the options to include in the response
+        const savedOptions = await db.getAllByIndex(OPTION_STORE, 'question_id', questionId);
+        updatedQuestion.options = savedOptions;
+      }
+      
       return {
-        data: { error: 'Question not found' },
-        status: 404
+        data: {
+          message: 'Question updated successfully',
+          question: {
+            ...updatedQuestion,
+            question_text: updatedQuestion.text // Add question_text for frontend compatibility
+          }
+        }
+      };
+    } catch (error) {
+      console.error('Static API error updating question:', error);
+      return {
+        data: { error: 'Failed to update question: ' + error.message },
+        status: 500
       };
     }
-    
-    const updatedQuestion = await db.update(QUESTION_STORE, questionId, {
-      ...data,
-      updated_at: new Date().toISOString()
-    });
-    
-    return {
-      data: updatedQuestion
-    };
   }
   
   // Delete question

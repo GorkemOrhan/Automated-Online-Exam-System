@@ -7,6 +7,47 @@ from .. import db
 # Create questions blueprint
 questions_bp = Blueprint('questions', __name__)
 
+@questions_bp.route('', methods=['GET'])
+@jwt_required()
+def get_all_questions():
+    """Get all questions with optional filtering."""
+    user_id = get_jwt_identity()
+    
+    # Get query parameters for filtering
+    exam_id = request.args.get('exam_id')
+    question_type = request.args.get('question_type')
+    search_text = request.args.get('search')
+    
+    # Start with a query that joins with exams to check permissions
+    query = Question.query.join(Exam).filter(Exam.creator_id == user_id)
+    
+    # Apply filters if provided
+    if exam_id:
+        query = query.filter(Question.exam_id == exam_id)
+    
+    if question_type:
+        query = query.filter(Question.question_type == question_type)
+    
+    if search_text:
+        query = query.filter(Question.text.ilike(f'%{search_text}%'))
+    
+    # Execute query and get results
+    questions = query.all()
+    
+    # Add exam title to each question
+    result = []
+    for question in questions:
+        question_dict = question.to_dict(include_correct_answers=True)
+        
+        # Add exam title
+        exam = Exam.query.get(question.exam_id)
+        if exam:
+            question_dict['exam_title'] = exam.title
+        
+        result.append(question_dict)
+    
+    return jsonify(result), 200
+
 @questions_bp.route('', methods=['POST'])
 @jwt_required()
 def create_question():
@@ -30,14 +71,23 @@ def create_question():
     if data['question_type'] not in valid_types:
         return jsonify({'error': f'Invalid question type. Must be one of: {", ".join(valid_types)}'}), 400
     
-    # Create new question
-    question = Question(
-        exam_id=data['exam_id'],
-        question_text=data['question_text'],
-        question_type=data['question_type'],
-        points=data['points'],
-        explanation=data.get('explanation', '')
-    )
+    # Create new question with or without explanation
+    try:
+        question = Question(
+            exam_id=data['exam_id'],
+            text=data['question_text'],
+            question_type=data['question_type'],
+            points=data['points'],
+            explanation=data.get('explanation', '')
+        )
+    except:
+        # If explanation column doesn't exist, create without it
+        question = Question(
+            exam_id=data['exam_id'],
+            text=data['question_text'],
+            question_type=data['question_type'],
+            points=data['points']
+        )
     
     # Add options if provided
     options = data.get('options', [])
@@ -46,7 +96,7 @@ def create_question():
     
     for option_data in options:
         option = Option(
-            option_text=option_data.get('option_text', ''),
+            text=option_data.get('option_text', ''),
             is_correct=option_data.get('is_correct', False)
         )
         question.options.append(option)
@@ -95,7 +145,7 @@ def update_question(question_id):
     
     # Update question fields
     if 'question_text' in data:
-        question.question_text = data['question_text']
+        question.text = data['question_text']
     if 'question_type' in data:
         # Validate question type
         valid_types = ['single_choice', 'multiple_choice', 'true_false', 'text']
@@ -104,8 +154,14 @@ def update_question(question_id):
         question.question_type = data['question_type']
     if 'points' in data:
         question.points = data['points']
+    
+    # Try to update explanation if column exists
     if 'explanation' in data:
-        question.explanation = data['explanation']
+        try:
+            question.explanation = data['explanation']
+        except:
+            # If the column doesn't exist, ignore this field
+            pass
     
     # Update options if provided
     if 'options' in data:
@@ -116,7 +172,7 @@ def update_question(question_id):
         # Add new options
         for option_data in data['options']:
             option = Option(
-                option_text=option_data.get('option_text', ''),
+                text=option_data.get('option_text', ''),
                 is_correct=option_data.get('is_correct', False)
             )
             question.options.append(option)
@@ -181,14 +237,23 @@ def bulk_create_questions():
             if q_data['question_type'] not in valid_types:
                 return jsonify({'error': f'Invalid question type. Must be one of: {", ".join(valid_types)}'}), 400
             
-            # Create new question
-            question = Question(
-                exam_id=data['exam_id'],
-                question_text=q_data['question_text'],
-                question_type=q_data['question_type'],
-                points=q_data['points'],
-                explanation=q_data.get('explanation', '')
-            )
+            # Create new question with or without explanation
+            try:
+                question = Question(
+                    exam_id=data['exam_id'],
+                    text=q_data['question_text'],
+                    question_type=q_data['question_type'],
+                    points=q_data['points'],
+                    explanation=q_data.get('explanation', '')
+                )
+            except:
+                # If explanation column doesn't exist, create without it
+                question = Question(
+                    exam_id=data['exam_id'],
+                    text=q_data['question_text'],
+                    question_type=q_data['question_type'],
+                    points=q_data['points']
+                )
             
             # Add options if provided
             options = q_data.get('options', [])
@@ -197,7 +262,7 @@ def bulk_create_questions():
             
             for option_data in options:
                 option = Option(
-                    option_text=option_data.get('option_text', ''),
+                    text=option_data.get('option_text', ''),
                     is_correct=option_data.get('is_correct', False)
                 )
                 question.options.append(option)
