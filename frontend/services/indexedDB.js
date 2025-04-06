@@ -2,11 +2,12 @@
 // This is used for GitHub Pages deployment where no backend server is available
 
 const DB_NAME = 'examSystemDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const USER_STORE = 'users';
 const EXAM_STORE = 'exams';
 const CANDIDATE_STORE = 'candidates';
 const QUESTION_STORE = 'questions';
+const OPTION_STORE = 'options';
 
 // Open database connection
 export const openDatabase = () => {
@@ -57,6 +58,11 @@ export const openDatabase = () => {
       if (!db.objectStoreNames.contains(QUESTION_STORE)) {
         const questionStore = db.createObjectStore(QUESTION_STORE, { keyPath: 'id', autoIncrement: true });
         questionStore.createIndex('exam_id', 'exam_id', { unique: false });
+      }
+      
+      if (!db.objectStoreNames.contains(OPTION_STORE)) {
+        const optionStore = db.createObjectStore(OPTION_STORE, { keyPath: 'id', autoIncrement: true });
+        optionStore.createIndex('question_id', 'question_id', { unique: false });
       }
     };
 

@@ -77,15 +77,20 @@ const QuestionManagement = () => {
   };
   
   const getQuestionTypeLabel = (type) => {
-    switch (type) {
+    const questionType = type || 'unknown';
+    
+    switch (questionType) {
       case 'multiple_choice':
         return 'Multiple Choice';
+      case 'single_choice':
+        return 'Single Choice';
       case 'true_false':
         return 'True/False';
+      case 'text':
       case 'open_ended':
         return 'Open Ended';
       default:
-        return type;
+        return questionType;
     }
   };
   
@@ -123,8 +128,9 @@ const QuestionManagement = () => {
             >
               <option value="">All Types</option>
               <option value="multiple_choice">Multiple Choice</option>
+              <option value="single_choice">Single Choice</option>
               <option value="true_false">True/False</option>
-              <option value="open_ended">Open Ended</option>
+              <option value="text">Open Ended</option>
             </select>
           </div>
           
@@ -180,7 +186,7 @@ const QuestionManagement = () => {
                     <div className="text-sm text-gray-900">{question.text.substring(0, 100)}{question.text.length > 100 ? '...' : ''}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {getQuestionTypeLabel(question.type)}
+                    {getQuestionTypeLabel(question.question_type || question.type)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {question.exam_title || 'Not assigned'}
