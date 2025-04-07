@@ -13,50 +13,133 @@ candidates_bp = Blueprint('candidates', __name__)
 @candidates_bp.route('', methods=['POST'])
 @jwt_required()
 def create_candidate():
-    """Create a candidate for an exam."""
+    """Create a candidate or multiple candidates for an exam."""
     user_id = get_jwt_identity()
     data = request.get_json()
     
-    # Validate required fields
-    required_fields = ['name', 'email', 'exam_id']
-    for field in required_fields:
-        if field not in data:
-            return jsonify({'error': f'Missing required field: {field}'}), 400
+    # Check if this is a bulk creation request (emails array is present)
+    if 'emails' in data and isinstance(data['emails'], list):
+        # Validate required fields for bulk creation
+        if 'exam_id' not in data:
+            return jsonify({'error': 'Missing required field: exam_id'}), 400
+        
+        # Check if exam exists and belongs to user
+        exam = Exam.query.filter_by(id=data['exam_id'], creator_id=user_id).first()
+        if not exam:
+            return jsonify({'error': 'Exam not found or access denied'}), 404
+        
+        # Process each email
+        created_candidates = []
+        failed_emails = []
+        
+        for email in data['emails']:
+            # Skip empty emails
+            if not email or not isinstance(email, str) or not email.strip():
+                continue
+                
+            email = email.strip()
+            
+            try:
+                # Check if candidate with this email already exists for this exam
+                existing_candidate = Candidate.query.filter_by(
+                    email=email,
+                    exam_id=data['exam_id']
+                ).first()
+                
+                if existing_candidate:
+                    failed_emails.append({
+                        'email': email,
+                        'reason': 'Email already exists for this exam'
+                    })
+                    continue
+                
+                # Generate name from email (part before @)
+                name = email.split('@')[0]
+                
+                # Generate unique link
+                unique_link = str(uuid.uuid4())
+                
+                # Create new candidate
+                candidate = Candidate(
+                    name=name,
+                    email=email,
+                    exam_id=data['exam_id'],
+                    unique_link=unique_link
+                )
+                
+                # Set additional attributes
+                candidate.is_test_completed = False
+                if data.get('send_invitation'):
+                    candidate.invitation_sent = True
+                    candidate.last_invited_at = datetime.utcnow()
+                
+                db.session.add(candidate)
+                created_candidates.append(candidate)
+                
+            except Exception as e:
+                failed_emails.append({
+                    'email': email,
+                    'reason': str(e)
+                })
+        
+        # Commit all changes in one transaction
+        db.session.commit()
+        
+        # Convert candidates to dictionaries for response
+        candidates_dict = [candidate.to_dict() for candidate in created_candidates]
+        
+        return jsonify({
+            'message': f'Created {len(created_candidates)} candidates ({len(failed_emails)} failed)',
+            'candidates': candidates_dict,
+            'failed_emails': failed_emails
+        }), 201
     
-    # Check if exam exists and belongs to user
-    exam = Exam.query.filter_by(id=data['exam_id'], creator_id=user_id).first()
-    if not exam:
-        return jsonify({'error': 'Exam not found or access denied'}), 404
-    
-    # Check if candidate with this email already exists for this exam
-    existing_candidate = Candidate.query.filter_by(
-        email=data['email'],
-        exam_id=data['exam_id']
-    ).first()
-    
-    if existing_candidate:
-        return jsonify({'error': 'A candidate with this email already exists for this exam'}), 400
-    
-    # Generate unique link
-    unique_link = str(uuid.uuid4())
-    
-    # Create new candidate
-    candidate = Candidate(
-        name=data['name'],
-        email=data['email'],
-        exam_id=data['exam_id'],
-        unique_link=unique_link,
-        is_test_completed=False
-    )
-    
-    db.session.add(candidate)
-    db.session.commit()
-    
-    return jsonify({
-        'message': 'Candidate created successfully',
-        'candidate': candidate.to_dict(),
-        'unique_link': f"/exam/{unique_link}"
-    }), 201
+    else:
+        # Single candidate creation - validate required fields
+        required_fields = ['name', 'email', 'exam_id']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+        
+        # Check if exam exists and belongs to user
+        exam = Exam.query.filter_by(id=data['exam_id'], creator_id=user_id).first()
+        if not exam:
+            return jsonify({'error': 'Exam not found or access denied'}), 404
+        
+        # Check if candidate with this email already exists for this exam
+        existing_candidate = Candidate.query.filter_by(
+            email=data['email'],
+            exam_id=data['exam_id']
+        ).first()
+        
+        if existing_candidate:
+            return jsonify({'error': 'A candidate with this email already exists for this exam'}), 400
+        
+        # Generate unique link
+        unique_link = str(uuid.uuid4())
+        
+        # Create new candidate
+        candidate = Candidate(
+            name=data['name'],
+            email=data['email'],
+            exam_id=data['exam_id'],
+            unique_link=unique_link
+        )
+        
+        # Set additional attributes
+        candidate.is_test_completed = False
+        if data.get('send_invitation'):
+            candidate.invitation_sent = True
+            candidate.last_invited_at = datetime.utcnow()
+        
+        db.session.add(candidate)
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Candidate created successfully',
+            'candidate': candidate.to_dict(),
+            'unique_link': f"/exam/{unique_link}"
+        }), 201
 
 
 @candidates_bp.route('/<int:candidate_id>', methods=['GET'])
@@ -145,7 +228,7 @@ def send_invitation(candidate_id):
         candidate.unique_link = str(uuid.uuid4())
     
     # Update invitation timestamp
-    candidate.invitation_sent_at = datetime.utcnow()
+    candidate.last_invited_at = datetime.utcnow()
     db.session.commit()
     
     # In a real application, you would send an email here
@@ -267,4 +350,60 @@ def submit_exam(unique_link):
     return jsonify({
         'message': 'Exam submitted successfully',
         'result': result.to_dict()
+    }), 200
+
+
+@candidates_bp.route('/<int:candidate_id>', methods=['PUT'])
+@jwt_required()
+def update_candidate(candidate_id):
+    """Update a candidate."""
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    
+    # Join Candidate with Exam to check permissions
+    candidate = Candidate.query.join(Exam).filter(
+        Candidate.id == candidate_id,
+        Exam.creator_id == user_id
+    ).first()
+    
+    if not candidate:
+        return jsonify({'error': 'Candidate not found or access denied'}), 404
+    
+    # Check if email has changed and if it's already taken
+    if 'email' in data and data['email'] != candidate.email:
+        existing_candidate = Candidate.query.filter_by(
+            email=data['email'],
+            exam_id=candidate.exam_id
+        ).first()
+        
+        if existing_candidate and existing_candidate.id != candidate_id:
+            return jsonify({'error': 'A candidate with this email already exists for this exam'}), 400
+    
+    # Update basic info
+    if 'name' in data:
+        candidate.name = data['name']
+    
+    if 'email' in data:
+        candidate.email = data['email']
+    
+    # Update exam if provided
+    if 'exam_id' in data:
+        # Verify the exam belongs to the user
+        new_exam = Exam.query.filter_by(id=data['exam_id'], creator_id=user_id).first()
+        if not new_exam:
+            return jsonify({'error': 'Exam not found or access denied'}), 404
+        
+        candidate.exam_id = data['exam_id']
+    
+    # Handle invitation status
+    if 'send_invitation' in data and data['send_invitation']:
+        candidate.invitation_sent = True
+        candidate.last_invited_at = datetime.utcnow()
+    
+    candidate.updated_at = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Candidate updated successfully',
+        'candidate': candidate.to_dict()
     }), 200 

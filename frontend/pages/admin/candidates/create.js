@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { FiArrowLeft, FiSave, FiPlus, FiTrash2 } from 'react-icons/fi';
+import { toast } from 'react-toastify';
 import MainLayout from '../../../components/layout/MainLayout';
 import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
@@ -119,32 +120,67 @@ const CreateCandidate = () => {
     try {
       if (!bulkMode) {
         // Single candidate
-        const result = await createCandidate(formData);
+        const candidateData = {
+          name: formData.name,
+          email: formData.email,
+          exam_id: parseInt(formData.exam_id),
+          send_invitation: formData.send_invitation,
+          custom_message: formData.custom_message || ''
+        };
+        
+        console.log('Submitting single candidate:', candidateData);
+        const result = await createCandidate(candidateData);
+        
         if (result.success) {
+          toast.success('Candidate created successfully');
           router.push('/admin/candidates');
         } else {
           setErrors({ form: result.message || 'Failed to create candidate' });
+          toast.error(result.message || 'Failed to create candidate');
         }
       } else {
         // Bulk candidates
-        const emails = bulkEmails.split('\n').map(email => email.trim()).filter(email => email);
+        const emails = bulkEmails.split('\n')
+          .map(email => email.trim())
+          .filter(email => email && email.includes('@'));
+        
+        if (emails.length === 0) {
+          setErrors({ bulkEmails: 'No valid emails found' });
+          setIsSubmitting(false);
+          return;
+        }
+        
         const bulkData = {
-          emails,
-          exam_id: formData.exam_id,
+          emails: emails,
+          exam_id: parseInt(formData.exam_id),
           send_invitation: formData.send_invitation,
-          custom_message: formData.custom_message,
+          custom_message: formData.custom_message || ''
         };
         
+        console.log('Submitting bulk candidates:', bulkData);
         const result = await createCandidate(bulkData, true);
+        
         if (result.success) {
+          const createdCount = result.candidates ? result.candidates.length : 0;
+          const failedCount = result.failed_emails ? result.failed_emails.length : 0;
+          
+          if (failedCount > 0) {
+            toast.warning(`Created ${createdCount} candidates, but ${failedCount} failed. See console for details.`);
+            console.warn('Failed emails:', result.failed_emails);
+          } else {
+            toast.success(`Successfully created ${createdCount} candidates`);
+          }
+          
           router.push('/admin/candidates');
         } else {
           setErrors({ form: result.message || 'Failed to create candidates' });
+          toast.error(result.message || 'Failed to create candidates');
         }
       }
     } catch (error) {
       console.error('Error creating candidate(s):', error);
       setErrors({ form: 'An unexpected error occurred' });
+      toast.error('An unexpected error occurred while creating candidates');
     } finally {
       setIsSubmitting(false);
     }
@@ -250,33 +286,35 @@ const CreateCandidate = () => {
             // Bulk candidates form
             <div className="mb-4">
               <label htmlFor="bulkEmails" className="block text-sm font-medium text-gray-700 mb-1">
-                Email Addresses (one per line) *
+                Emails (One per line) *
               </label>
               <textarea
                 id="bulkEmails"
+                name="bulkEmails"
                 value={bulkEmails}
                 onChange={(e) => {
                   setBulkEmails(e.target.value);
                   if (errors.bulkEmails) {
-                    setErrors({
-                      ...errors,
-                      bulkEmails: null,
-                    });
+                    setErrors({ ...errors, bulkEmails: null });
                   }
                 }}
-                rows="6"
+                rows={8}
                 className={`w-full px-3 py-2 border rounded-md ${errors.bulkEmails ? 'border-red-500' : 'border-gray-300'}`}
-                placeholder="Enter one email address per line"
+                placeholder="Enter one email address per line, e.g.:
+john.doe@example.com
+jane.smith@example.com
+robert.johnson@example.com"
               ></textarea>
               {errors.bulkEmails && (
                 <p className="mt-1 text-sm text-red-600">{errors.bulkEmails}</p>
               )}
-              <p className="mt-1 text-xs text-gray-500">
-                Names will be extracted from email addresses. You can update them later.
+              <p className="text-sm text-gray-500 mt-2">
+                Each email will generate a candidate with the name taken from the email address.
               </p>
             </div>
           )}
           
+          {/* Invitation controls - common for both single and bulk */}
           <div className="mb-4">
             <div className="flex items-center">
               <input
@@ -285,7 +323,7 @@ const CreateCandidate = () => {
                 name="send_invitation"
                 checked={formData.send_invitation}
                 onChange={handleChange}
-                className="h-4 w-4 text-primary-600 border-gray-300 rounded"
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
               />
               <label htmlFor="send_invitation" className="ml-2 block text-sm text-gray-700">
                 Send invitation email immediately
@@ -296,17 +334,20 @@ const CreateCandidate = () => {
           {formData.send_invitation && (
             <div className="mb-4">
               <label htmlFor="custom_message" className="block text-sm font-medium text-gray-700 mb-1">
-                Custom Message (optional)
+                Custom Message (Optional)
               </label>
               <textarea
                 id="custom_message"
                 name="custom_message"
                 value={formData.custom_message}
                 onChange={handleChange}
-                rows="3"
+                rows={4}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                placeholder="Add a custom message to the invitation email"
+                placeholder="Enter any additional information you want to include in the invitation email..."
               ></textarea>
+              <p className="text-sm text-gray-500 mt-2">
+                This message will be included in the invitation email. The email will already include the exam details and access link.
+              </p>
             </div>
           )}
           
