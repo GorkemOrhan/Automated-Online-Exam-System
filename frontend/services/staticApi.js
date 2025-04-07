@@ -592,40 +592,16 @@ const handleQuestionRequest = async (method, url, data) => {
 
 // Handle candidate requests
 const handleCandidateRequest = async (method, url, data) => {
-  // Create candidate (doesn't require authentication)
-  if (url === '/candidates' && method === 'POST') {
-    // Check if email already exists
-    const existingCandidate = await db.getByIndex(CANDIDATE_STORE, 'email', data.email);
-    if (existingCandidate) {
+  // Get all candidates (admins only)
+  if (url === '/candidates' && method === 'GET') {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
       return {
-        data: { error: 'Email already exists' },
-        status: 400
+        data: { error: 'Not authenticated' },
+        status: 401
       };
     }
     
-    const newCandidate = {
-      ...data,
-      exam_link: `${uuidv4()}`,
-      created_at: new Date().toISOString()
-    };
-    
-    const createdCandidate = await db.add(CANDIDATE_STORE, newCandidate);
-    return {
-      data: createdCandidate
-    };
-  }
-  
-  // Other candidate operations require authentication
-  const currentUser = getCurrentUser();
-  if (!currentUser) {
-    return {
-      data: { error: 'Not authenticated' },
-      status: 401
-    };
-  }
-  
-  // Get all candidates (admins only)
-  if (url === '/candidates' && method === 'GET') {
     if (!currentUser.is_admin) {
       return {
         data: { error: 'Only admins can view all candidates' },
@@ -634,14 +610,148 @@ const handleCandidateRequest = async (method, url, data) => {
     }
     
     const candidates = await db.getAll(CANDIDATE_STORE);
+    
+    // Get exam info for each candidate
+    const candidatesWithExams = [];
+    for (const candidate of candidates) {
+      const exam = await db.getById(EXAM_STORE, candidate.exam_id);
+      candidatesWithExams.push({
+        ...candidate,
+        exam_title: exam ? exam.title : 'Unknown Exam'
+      });
+    }
+    
     return {
-      data: candidates
+      data: candidatesWithExams
     };
   }
   
-  // Get candidate by ID (admins only)
+  // Create candidate(s)
+  if (url === '/candidates' && method === 'POST') {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      return {
+        data: { error: 'Not authenticated' },
+        status: 401
+      };
+    }
+    
+    if (!currentUser.is_admin) {
+      return {
+        data: { error: 'Only admins can create candidates' },
+        status: 403
+      };
+    }
+    
+    // Check if this is a bulk creation (if emails array is present)
+    if (data.emails && Array.isArray(data.emails)) {
+      // Bulk creation
+      const createdCandidates = [];
+      const failedEmails = [];
+      
+      for (const email of data.emails) {
+        try {
+          // Check for duplicate email
+          const existingCandidate = await db.getByIndex(CANDIDATE_STORE, 'email', email);
+          if (existingCandidate) {
+            failedEmails.push({ email, reason: 'Email already exists' });
+            continue;
+          }
+          
+          // Get the exam to include its title
+          const exam = await db.getById(EXAM_STORE, data.exam_id);
+          if (!exam) {
+            failedEmails.push({ email, reason: 'Exam not found' });
+            continue;
+          }
+          
+          const newCandidate = {
+            name: email.split('@')[0], // Use part of email as name
+            email: email,
+            exam_id: data.exam_id,
+            exam_title: exam.title,
+            unique_link: uuidv4(),
+            invitation_sent: data.send_invitation || false,
+            last_invited_at: data.send_invitation ? new Date().toISOString() : null,
+            is_test_completed: false,
+            test_start_time: null,
+            test_end_time: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          
+          const createdCandidate = await db.add(CANDIDATE_STORE, newCandidate);
+          createdCandidates.push(createdCandidate);
+        } catch (error) {
+          failedEmails.push({ email, reason: error.message });
+        }
+      }
+      
+      return {
+        data: {
+          message: `Created ${createdCandidates.length} candidates (${failedEmails.length} failed)`,
+          candidates: createdCandidates,
+          failed_emails: failedEmails
+        }
+      };
+    } else {
+      // Single candidate creation
+      // Check if email already exists
+      const existingCandidate = await db.getByIndex(CANDIDATE_STORE, 'email', data.email);
+      if (existingCandidate) {
+        return {
+          data: { error: 'A candidate with this email already exists' },
+          status: 400
+        };
+      }
+      
+      // Get the exam to include its title
+      const exam = await db.getById(EXAM_STORE, data.exam_id);
+      if (!exam) {
+        return {
+          data: { error: 'Exam not found' },
+          status: 404
+        };
+      }
+      
+      const newCandidate = {
+        name: data.name,
+        email: data.email,
+        exam_id: data.exam_id,
+        exam_title: exam.title,
+        unique_link: uuidv4(),
+        invitation_sent: data.send_invitation || false,
+        last_invited_at: data.send_invitation ? new Date().toISOString() : null,
+        is_test_completed: false,
+        test_start_time: null,
+        test_end_time: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      
+      const createdCandidate = await db.add(CANDIDATE_STORE, newCandidate);
+      
+      return {
+        data: {
+          message: 'Candidate created successfully',
+          candidate: createdCandidate,
+          unique_link: `/exam/${createdCandidate.unique_link}`
+        }
+      };
+    }
+  }
+  
+  // Get candidate by ID
   const candidateIdMatch = url.match(/^\/candidates\/(\d+)$/);
   if (candidateIdMatch && method === 'GET') {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      return {
+        data: { error: 'Not authenticated' },
+        status: 401
+      };
+    }
+    
     if (!currentUser.is_admin) {
       return {
         data: { error: 'Only admins can view candidate details' },
@@ -659,8 +769,206 @@ const handleCandidateRequest = async (method, url, data) => {
       };
     }
     
+    // Get the exam title
+    const exam = await db.getById(EXAM_STORE, candidate.exam_id);
+    if (exam) {
+      candidate.exam_title = exam.title;
+    }
+    
     return {
       data: candidate
+    };
+  }
+  
+  // Update candidate
+  if (candidateIdMatch && method === 'PUT') {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      return {
+        data: { error: 'Not authenticated' },
+        status: 401
+      };
+    }
+    
+    if (!currentUser.is_admin) {
+      return {
+        data: { error: 'Only admins can update candidates' },
+        status: 403
+      };
+    }
+    
+    const candidateId = parseInt(candidateIdMatch[1]);
+    const candidate = await db.getById(CANDIDATE_STORE, candidateId);
+    
+    if (!candidate) {
+      return {
+        data: { error: 'Candidate not found' },
+        status: 404
+      };
+    }
+    
+    // Check if email has changed and if it's already taken by another candidate for the same exam
+    if (data.email && data.email !== candidate.email) {
+      const existingCandidate = await db.getAllByIndex(CANDIDATE_STORE, 'email', data.email);
+      const sameExamCandidate = existingCandidate.find(c => 
+        c.id !== candidateId && c.exam_id === (data.exam_id || candidate.exam_id)
+      );
+      
+      if (sameExamCandidate) {
+        return {
+          data: { error: 'A candidate with this email already exists for this exam' },
+          status: 400
+        };
+      }
+    }
+    
+    // Update basic fields
+    const updates = {
+      name: data.name !== undefined ? data.name : candidate.name,
+      email: data.email !== undefined ? data.email : candidate.email,
+      exam_id: data.exam_id !== undefined ? data.exam_id : candidate.exam_id,
+      updated_at: new Date().toISOString()
+    };
+    
+    // If send_invitation is true, update invitation status
+    if (data.send_invitation) {
+      updates.invitation_sent = true;
+      updates.last_invited_at = new Date().toISOString();
+    }
+    
+    // Update exam title if exam_id has changed
+    if (data.exam_id && data.exam_id !== candidate.exam_id) {
+      const exam = await db.getById(EXAM_STORE, data.exam_id);
+      if (exam) {
+        updates.exam_title = exam.title;
+      }
+    }
+    
+    const updatedCandidate = await db.update(CANDIDATE_STORE, candidateId, updates);
+    
+    return {
+      data: {
+        message: 'Candidate updated successfully',
+        candidate: updatedCandidate
+      }
+    };
+  }
+  
+  // Delete candidate
+  if (candidateIdMatch && method === 'DELETE') {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      return {
+        data: { error: 'Not authenticated' },
+        status: 401
+      };
+    }
+    
+    if (!currentUser.is_admin) {
+      return {
+        data: { error: 'Only admins can delete candidates' },
+        status: 403
+      };
+    }
+    
+    const candidateId = parseInt(candidateIdMatch[1]);
+    const candidate = await db.getById(CANDIDATE_STORE, candidateId);
+    
+    if (!candidate) {
+      return {
+        data: { error: 'Candidate not found' },
+        status: 404
+      };
+    }
+    
+    await db.remove(CANDIDATE_STORE, candidateId);
+    
+    return {
+      data: { message: 'Candidate deleted successfully' }
+    };
+  }
+  
+  // Send invitation
+  const sendInviteMatch = url.match(/^\/candidates\/(\d+)\/send-invitation$/);
+  if (sendInviteMatch && method === 'POST') {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      return {
+        data: { error: 'Not authenticated' },
+        status: 401
+      };
+    }
+    
+    if (!currentUser.is_admin) {
+      return {
+        data: { error: 'Only admins can send invitations' },
+        status: 403
+      };
+    }
+    
+    const candidateId = parseInt(sendInviteMatch[1]);
+    const candidate = await db.getById(CANDIDATE_STORE, candidateId);
+    
+    if (!candidate) {
+      return {
+        data: { error: 'Candidate not found' },
+        status: 404
+      };
+    }
+    
+    // Update invitation status
+    const updatedCandidate = await db.update(CANDIDATE_STORE, candidateId, {
+      invitation_sent: true,
+      last_invited_at: new Date().toISOString()
+    });
+    
+    return {
+      data: {
+        message: 'Invitation sent successfully',
+        candidate: updatedCandidate,
+        unique_link: `/exam/${updatedCandidate.unique_link}`
+      }
+    };
+  }
+  
+  // Get candidates for a specific exam
+  const examCandidatesMatch = url.match(/^\/exams\/(\d+)\/candidates$/);
+  if (examCandidatesMatch && method === 'GET') {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      return {
+        data: { error: 'Not authenticated' },
+        status: 401
+      };
+    }
+    
+    if (!currentUser.is_admin) {
+      return {
+        data: { error: 'Only admins can view candidates' },
+        status: 403
+      };
+    }
+    
+    const examId = parseInt(examCandidatesMatch[1]);
+    const exam = await db.getById(EXAM_STORE, examId);
+    
+    if (!exam) {
+      return {
+        data: { error: 'Exam not found' },
+        status: 404
+      };
+    }
+    
+    // Get all candidates for this exam
+    const candidates = await db.getAllByIndex(CANDIDATE_STORE, 'exam_id', examId);
+    
+    // Include exam title
+    candidates.forEach(candidate => {
+      candidate.exam_title = exam.title;
+    });
+    
+    return {
+      data: candidates
     };
   }
   
@@ -671,7 +979,7 @@ const handleCandidateRequest = async (method, url, data) => {
     
     // Find candidate with matching exam link
     const candidates = await db.getAll(CANDIDATE_STORE);
-    const candidate = candidates.find(c => c.exam_link === examLink);
+    const candidate = candidates.find(c => c.unique_link === examLink);
     
     if (!candidate) {
       return {
@@ -687,6 +995,13 @@ const handleCandidateRequest = async (method, url, data) => {
         data: { error: 'Exam not found' },
         status: 404
       };
+    }
+    
+    // If this is the first access, update test_start_time
+    if (!candidate.test_start_time) {
+      await db.update(CANDIDATE_STORE, candidate.id, {
+        test_start_time: new Date().toISOString()
+      });
     }
     
     return {

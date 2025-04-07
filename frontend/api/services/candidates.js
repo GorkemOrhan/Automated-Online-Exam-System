@@ -1,10 +1,35 @@
 import api from './api';
 
-export const createCandidate = async (candidateData) => {
+export const createCandidate = async (candidateData, isBulk = false) => {
   try {
-    const response = await api.post('/candidates', candidateData);
-    return { success: true, candidate: response.data.candidate };
+    // If isBulk is true, format data for bulk creation
+    let requestData = candidateData;
+    
+    if (isBulk) {
+      // For bulk creation, extract emails from the bulk text
+      // and send them as an array
+      const emails = candidateData.emails.filter(email => email.trim());
+      
+      requestData = {
+        emails,
+        exam_id: candidateData.exam_id,
+        send_invitation: candidateData.send_invitation || false,
+        custom_message: candidateData.custom_message || ''
+      };
+    }
+    
+    console.log('Creating candidate(s) with data:', requestData);
+    const response = await api.post('/candidates', requestData);
+    
+    return { 
+      success: true, 
+      candidate: response.data.candidate,
+      candidates: response.data.candidates,
+      failed_emails: response.data.failed_emails,
+      message: response.data.message
+    };
   } catch (error) {
+    console.error('Error creating candidate:', error);
     return {
       success: false,
       message: error.response?.data?.error || 'Failed to create candidate',
