@@ -168,7 +168,15 @@ const ExamDetails = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {question.type === 'multiple_choice' ? 'Multiple Choice' : 'Open-ended'}
+                      {question.type === 'multiple_choice' ? 'Multiple Choice' : 
+                       question.type === 'single_choice' ? 'Single Choice' :
+                       question.type === 'true_false' ? 'True/False' :
+                       question.type === 'text' ? 'Open-ended' :
+                       question.question_type === 'multiple_choice' ? 'Multiple Choice' : 
+                       question.question_type === 'single_choice' ? 'Single Choice' :
+                       question.question_type === 'true_false' ? 'True/False' :
+                       question.question_type === 'text' ? 'Open-ended' :
+                       'Unknown Type'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {question.points}
