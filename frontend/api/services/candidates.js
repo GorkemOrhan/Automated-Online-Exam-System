@@ -51,12 +51,32 @@ export const getCandidate = async (candidateId) => {
 
 export const getExamCandidates = async (examId) => {
   try {
-    const response = await api.get(`/exams/${examId}/candidates`);
-    return { success: true, candidates: response.data };
+    console.log('Making API request for exam candidates, exam ID:', examId);
+    // Use the correct endpoint path based on how it's defined in the backend
+    const response = await api.get(`/candidates/exams/${examId}/candidates`);
+    console.log('API response for exam candidates:', response);
+    
+    // Handle different response formats
+    // Static API returns array directly, real API might return an object
+    let candidates;
+    if (Array.isArray(response.data)) {
+      candidates = response.data;
+    } else if (response.data && Array.isArray(response.data.candidates)) {
+      candidates = response.data.candidates;
+    } else {
+      candidates = response.data; // Fallback
+    }
+    
+    return { 
+      success: true, 
+      candidates: candidates || [] 
+    };
   } catch (error) {
+    console.error('Error fetching exam candidates:', error);
     return {
       success: false,
       message: error.response?.data?.error || 'Failed to fetch candidates',
+      error: error
     };
   }
 };
