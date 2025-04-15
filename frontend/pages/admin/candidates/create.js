@@ -42,8 +42,15 @@ const CreateCandidate = () => {
         if (result.success) {
           setExams(result.exams);
           
-          // Set default exam if available
-          if (result.exams.length > 0) {
+          // Pre-select exam from query parameter if available
+          if (router.query.exam_id) {
+            setFormData(prev => ({
+              ...prev,
+              exam_id: router.query.exam_id
+            }));
+          } 
+          // Otherwise set default exam if available
+          else if (result.exams.length > 0) {
             setFormData(prev => ({
               ...prev,
               exam_id: result.exams[0].id
@@ -56,7 +63,7 @@ const CreateCandidate = () => {
     };
     
     fetchExams();
-  }, [router]);
+  }, [router, router.query.exam_id]);
   
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -133,7 +140,12 @@ const CreateCandidate = () => {
         
         if (result.success) {
           toast.success('Candidate created successfully');
-          router.push('/admin/candidates');
+          // If we came from the exam candidates page, go back there
+          if (router.query.exam_id) {
+            router.push(`/admin/exams/${router.query.exam_id}/candidates`);
+          } else {
+            router.push('/admin/candidates');
+          }
         } else {
           setErrors({ form: result.message || 'Failed to create candidate' });
           toast.error(result.message || 'Failed to create candidate');
@@ -171,7 +183,12 @@ const CreateCandidate = () => {
             toast.success(`Successfully created ${createdCount} candidates`);
           }
           
-          router.push('/admin/candidates');
+          // If we came from the exam candidates page, go back there
+          if (router.query.exam_id) {
+            router.push(`/admin/exams/${router.query.exam_id}/candidates`);
+          } else {
+            router.push('/admin/candidates');
+          }
         } else {
           setErrors({ form: result.message || 'Failed to create candidates' });
           toast.error(result.message || 'Failed to create candidates');

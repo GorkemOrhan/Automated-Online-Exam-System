@@ -338,7 +338,56 @@ const handleExamRequest = async (method, url, data) => {
     };
   }
   
-  throw new Error(`Unhandled exam route: ${url}`);
+  // Get candidates for exam route
+  const examCandidatesMatch = url.match(/^\/exams\/(\d+)\/candidates$/);
+  if (examCandidatesMatch && method === 'GET') {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      return {
+        data: { error: 'Not authenticated' },
+        status: 401
+      };
+    }
+    
+    if (!currentUser.is_admin) {
+      return {
+        data: { error: 'Only admins can view exam candidates' },
+        status: 403
+      };
+    }
+    
+    const examId = parseInt(examCandidatesMatch[1]);
+    
+    // Get all candidates and filter by exam_id
+    const allCandidates = await db.getAll(CANDIDATE_STORE);
+    const examIdNumber = parseInt(examId);
+    
+    console.log('Static API: Looking for candidates with exam_id:', examIdNumber);
+    console.log('Static API: All candidates:', allCandidates);
+    
+    const examCandidates = allCandidates.filter(candidate => {
+      // Handle both string and number formats for exam_id
+      const candidateExamId = typeof candidate.exam_id === 'string' 
+        ? parseInt(candidate.exam_id)
+        : candidate.exam_id;
+        
+      return candidateExamId === examIdNumber;
+    });
+    
+    console.log('Static API: Filtered candidates:', examCandidates);
+    
+    // Return candidates with the same structure as the real API
+    return {
+      data: examCandidates,
+      status: 200
+    };
+  }
+  
+  // If no handler matched, return a 404 response instead of throwing
+  return {
+    data: { error: `Route not found: ${url}` },
+    status: 404
+  };
 };
 
 // Handle question requests
@@ -931,47 +980,6 @@ const handleCandidateRequest = async (method, url, data) => {
     };
   }
   
-  // Get candidates for a specific exam
-  const examCandidatesMatch = url.match(/^\/exams\/(\d+)\/candidates$/);
-  if (examCandidatesMatch && method === 'GET') {
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-      return {
-        data: { error: 'Not authenticated' },
-        status: 401
-      };
-    }
-    
-    if (!currentUser.is_admin) {
-      return {
-        data: { error: 'Only admins can view candidates' },
-        status: 403
-      };
-    }
-    
-    const examId = parseInt(examCandidatesMatch[1]);
-    const exam = await db.getById(EXAM_STORE, examId);
-    
-    if (!exam) {
-      return {
-        data: { error: 'Exam not found' },
-        status: 404
-      };
-    }
-    
-    // Get all candidates for this exam
-    const candidates = await db.getAllByIndex(CANDIDATE_STORE, 'exam_id', examId);
-    
-    // Include exam title
-    candidates.forEach(candidate => {
-      candidate.exam_title = exam.title;
-    });
-    
-    return {
-      data: candidates
-    };
-  }
-  
   // Access exam by unique link (for candidates)
   const examLinkMatch = url.match(/^\/candidates\/exam\/(.+)$/);
   if (examLinkMatch && method === 'GET') {
@@ -1012,5 +1020,53 @@ const handleCandidateRequest = async (method, url, data) => {
     };
   }
   
-  throw new Error(`Unhandled candidate route: ${url}`);
+  // Get candidates for exam route
+  const examCandidatesMatch = url.match(/^\/candidates\/exams\/(\d+)\/candidates$/);
+  if (examCandidatesMatch && method === 'GET') {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      return {
+        data: { error: 'Not authenticated' },
+        status: 401
+      };
+    }
+    
+    if (!currentUser.is_admin) {
+      return {
+        data: { error: 'Only admins can view exam candidates' },
+        status: 403
+      };
+    }
+    
+    const examId = parseInt(examCandidatesMatch[1]);
+    const examIdNumber = parseInt(examId);
+    
+    console.log('Static API (new route): Looking for candidates with exam_id:', examIdNumber);
+    
+    // Get all candidates and filter by exam_id
+    const allCandidates = await db.getAll(CANDIDATE_STORE);
+    console.log('Static API: All candidates:', allCandidates);
+    
+    const examCandidates = allCandidates.filter(candidate => {
+      // Handle both string and number formats for exam_id
+      const candidateExamId = typeof candidate.exam_id === 'string' 
+        ? parseInt(candidate.exam_id)
+        : candidate.exam_id;
+        
+      return candidateExamId === examIdNumber;
+    });
+    
+    console.log('Static API: Filtered candidates:', examCandidates);
+    
+    return {
+      data: examCandidates,
+      status: 200
+    };
+  }
+  
+  // If no handler matched, return a 404 response instead of throwing
+  return {
+    data: { error: `Route not found: ${url}` },
+    status: 404
+  };
 }; 
