@@ -1,24 +1,17 @@
 import os
 from flask import Flask, jsonify
-from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
-from .database import db
 from .config import Config
-from .api.auth import auth_bp
-from .api.exams import exams_bp
-from .api.questions import questions_bp
-from .api.candidates import candidates_bp
-from .api.results import results_bp
-from .api.test import test_bp
 import logging
 
 # Load environment variables
 load_dotenv()
 
 # Initialize extensions
+from .database import db
 migrate = Migrate()
 jwt = JWTManager()
 
@@ -73,6 +66,13 @@ def create_app(config_class=Config):
                        format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]')
     
     # Register blueprints
+    from .api.auth import auth_bp
+    from .api.exams import exams_bp
+    from .api.questions import questions_bp
+    from .api.candidates import candidates_bp
+    from .api.results import results_bp
+    from .api.test import test_bp
+    
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(exams_bp, url_prefix='/api/exams')
     app.register_blueprint(questions_bp, url_prefix='/api/questions')
